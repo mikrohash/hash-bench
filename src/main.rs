@@ -26,10 +26,25 @@ impl B16 {
 }
 
 macro_rules! trinary_struct {
-    ($tname : ident, $trit_size : expr, $bname : ident, $test_encode_decode_name : ident) => {
+    ($tname : ident, $trit_size : expr, $bname : ident) => {
         struct $tname([T9; $trit_size/9]);
 
         impl $tname {
+
+            fn random() -> Self {
+                $tname::from_tryte_array($tname::random_tryte_array())
+            }
+
+            fn random_tryte_array() -> [u8; $trit_size/3] {
+                use rand::Rng;
+                let mut ring = rand::thread_rng();
+                let mut random_tryte_array = [0 as u8; $trit_size/3];
+                for i in 0..random_tryte_array.len() {
+                    random_tryte_array[i] = ring.gen_range(0, 255) as u8;
+                }
+                random_tryte_array
+            }
+
             fn encode(&self) -> $bname {
                 let mut t_iter = self.0.iter();
                 let mut encoded = $bname([B16(0, 0); $trit_size/9]);
@@ -55,6 +70,14 @@ macro_rules! trinary_struct {
                 tname
             }
 
+            fn from_tryte_array(array : [u8; $trit_size/3]) -> Self {
+                let mut t9s = [T9(0, 0, 0); $trit_size/9];
+                for i in 0 .. $trit_size/9 {
+                    t9s[i] = T9(array[i*3], array[i*3+1], array[i*3+2]);
+                }
+                $tname(t9s)
+            }
+
             fn as_tryte_array(&self) -> [u8; $trit_size/3] {
                 let mut array = [0 as u8; $trit_size/3];
                 let mut array_iter_mut = array.iter_mut();
@@ -66,6 +89,28 @@ macro_rules! trinary_struct {
                     *array_iter_mut.next().unwrap() = t9.2;
                 }
                 array
+            }
+
+            #[cfg(test)]
+            fn test_tryte_array() {
+                let tryte_array_original = $tname::random_tryte_array();
+                let tryte_array_result = $tname::from_tryte_array(tryte_array_original).as_tryte_array();
+                assert_eq!(tryte_array_original[0..$trit_size/3], tryte_array_result[0..$trit_size/3]);
+            }
+
+            #[cfg(test)]
+            fn test_from_human_readable() {
+                let tname_original = $tname::from_human_readable("AB9C");
+                let tname_result = tname_original.encode().decode();
+                assert_eq!([1, 2, 0, 3, 0] as [u8; 5], tname_result.as_tryte_array()[0..5]);
+            }
+
+            #[cfg(test)]
+            fn test_encode_decode() {
+                let tname_original = $tname::random();
+                let bname = tname_original.encode();
+                let tname_decoded = bname.decode();
+                assert_eq!(tname_original.as_tryte_array()[0..$trit_size/3], tname_decoded.as_tryte_array()[0..$trit_size/3]);
             }
         }
 
@@ -84,24 +129,13 @@ macro_rules! trinary_struct {
                 decoded
             }
         }
-
-        #[cfg(test)]
-        fn $test_encode_decode_name() {
-            let tname_original = $tname::from_human_readable("AB9C");
-            let tname_result = tname_original.encode().decode();
-
-            let mut expected = [0 as u8; $trit_size/3];
-            expected[0] = 1;
-            expected[1] = 2;
-            expected[3] = 3;
-            assert_eq!(expected[0..$trit_size/3], tname_result.as_tryte_array()[0..$trit_size/3]);
-        }
     };
 }
 
-trinary_struct!(T243, 243, B432, test_encoding_decoding_of_T243);
-trinary_struct!(T81, 81, B144, test_encoding_decoding_of_T81);
-trinary_struct!(T27, 27, B48, test_encoding_decoding_of_T27);
+trinary_struct!(T721, 721, B1296);
+trinary_struct!(T243, 243, B432);
+trinary_struct!(T81, 81, B144);
+trinary_struct!(T27, 27, B48);
 
 #[cfg(test)]
 mod test {
@@ -116,9 +150,26 @@ mod test {
     }
 
     #[test]
-    fn test_243_encoding_decoding() {
-        test_encoding_decoding_of_T243();
-        test_encoding_decoding_of_T81();
-        test_encoding_decoding_of_T27()
+    fn test_from_human_readable() {
+        T721::test_from_human_readable();
+        T243::test_from_human_readable();
+        T81::test_from_human_readable();
+        T27::test_from_human_readable();
+    }
+
+    #[test]
+    fn test_tryte_array() {
+        T27::test_tryte_array();
+        T81::test_tryte_array();
+        T243::test_tryte_array();
+        T721::test_tryte_array();
+    }
+
+    #[test]
+    fn test_encode_decode() {
+        T27::test_encode_decode();
+        T81::test_encode_decode();
+        T243::test_encode_decode();
+        T721::test_encode_decode();
     }
 }
