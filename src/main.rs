@@ -40,7 +40,7 @@ macro_rules! trinary_struct {
                 let mut ring = rand::thread_rng();
                 let mut random_tryte_array = [0 as u8; $trit_size/3];
                 for i in 0..random_tryte_array.len() {
-                    random_tryte_array[i] = ring.gen_range(0, 255) as u8;
+                    random_tryte_array[i] = ring.gen_range(0, 27) as u8;
                 }
                 random_tryte_array
             }
@@ -143,10 +143,10 @@ mod test {
 
     #[test]
     fn test_t9_encoding_decoding() {
-        // todo randomize
-        let a = T9(4, 7, 13);
-        let b = a.encode().decode();
-        assert_eq!([a.0, a.1, a.2], [b.0, b.1, b.2]);
+        for &a in T27::random().0.iter() {
+            let b = a.encode().decode();
+            assert_eq!([a.0, a.1, a.2], [b.0, b.1, b.2]);
+        }
     }
 
     #[test]
