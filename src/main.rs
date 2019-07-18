@@ -25,62 +25,83 @@ impl B16 {
     }
 }
 
-struct T243([T9; 27]);
-struct B432([B16; 27]);
+macro_rules! trinary_struct {
+    ($tname : ident, $trit_size : expr, $bname : ident, $test_encode_decode_name : ident) => {
+        struct $tname([T9; $trit_size/9]);
 
-impl T243 {
-    fn encode(&self) -> B432 {
-        let mut t_iter = self.0.iter();
-        let mut encoded = B432([B16(0, 0); 27]);
-        let mut b_iter = encoded.0.iter_mut();
-        for _ in 0..27 {
-            let t9 = t_iter.next().unwrap();
-            let b16 = b_iter.next().unwrap();
-            *b16 = t9.encode();
-        }
-        encoded
-    }
+        impl $tname {
+            fn encode(&self) -> $bname {
+                let mut t_iter = self.0.iter();
+                let mut encoded = $bname([B16(0, 0); $trit_size/9]);
+                let mut b_iter_mut = encoded.0.iter_mut();
+                for _ in 0..$trit_size/9 {
+                    let t9 = t_iter.next().unwrap();
+                    let b16 = b_iter_mut.next().unwrap();
+                    *b16 = t9.encode();
+                }
+                encoded
+            }
 
-    fn from_human_readable(s : &str) -> Self {
-        let mut t243 = T243([T9(0, 0, 0); 27]);
-        let mut src_iter = s.chars();
-        let mut t243_iter = t243.0.iter_mut();
-        for _ in 0..(s.len()+2)/3 {
-            let c0 = src_iter.next().unwrap_or('9');
-            let c1 = src_iter.next().unwrap_or('9');
-            let c2 = src_iter.next().unwrap_or('9');
-            *t243_iter.next().unwrap() = T9::from_human_readable(c0, c1, c2);
-        }
-        t243
-    }
+            fn from_human_readable(s : &str) -> Self {
+                let mut tname = $tname([T9(0, 0, 0); $trit_size/9]);
+                let mut src_iter = s.chars();
+                let mut tname_iter_mut = tname.0.iter_mut();
+                for _ in 0..(s.len()+2)/3 {
+                    let c0 = src_iter.next().unwrap_or('9');
+                    let c1 = src_iter.next().unwrap_or('9');
+                    let c2 = src_iter.next().unwrap_or('9');
+                    *tname_iter_mut.next().unwrap() = T9::from_human_readable(c0, c1, c2);
+                }
+                tname
+            }
 
-    fn as_tryte_array(&self) -> [u8; 81] {
-        let mut array = [0 as u8; 81];
-        let mut array_iter_mut = array.iter_mut();
-        let mut t9_iter = self.0.iter();
-        for _ in 0 .. 27 {
-            let t9 = t9_iter.next().unwrap();
-            *array_iter_mut.next().unwrap() = t9.0;
-            *array_iter_mut.next().unwrap() = t9.1;
-            *array_iter_mut.next().unwrap() = t9.2;
+            fn as_tryte_array(&self) -> [u8; $trit_size/3] {
+                let mut array = [0 as u8; $trit_size/3];
+                let mut array_iter_mut = array.iter_mut();
+                let mut t9_iter = self.0.iter();
+                for _ in 0 .. $trit_size/9 {
+                    let t9 = t9_iter.next().unwrap();
+                    *array_iter_mut.next().unwrap() = t9.0;
+                    *array_iter_mut.next().unwrap() = t9.1;
+                    *array_iter_mut.next().unwrap() = t9.2;
+                }
+                array
+            }
         }
-        array
-    }
+
+        struct $bname([B16; $trit_size/9]);
+
+        impl $bname {
+            fn decode(&self) -> $tname {
+                let mut b_iter = self.0.iter();
+                let mut decoded = $tname([T9(0, 0, 0); $trit_size/9]);
+                let mut t_iter_mut = decoded.0.iter_mut();
+                for _ in 0..$trit_size/9 {
+                    let b16 = b_iter.next().unwrap();
+                    let t9 = t_iter_mut.next().unwrap();
+                    *t9 = b16.decode();
+                }
+                decoded
+            }
+        }
+
+        #[cfg(test)]
+        fn $test_encode_decode_name() {
+            let tname_original = $tname::from_human_readable("AB9C");
+            let tname_result = tname_original.encode().decode();
+
+            let mut expected = [0 as u8; $trit_size/3];
+            expected[0] = 1;
+            expected[1] = 2;
+            expected[3] = 3;
+            assert_eq!(expected[0..$trit_size/3], tname_result.as_tryte_array()[0..$trit_size/3]);
+        }
+    };
 }
 
-impl B432 {
-    fn decode(&self) -> T243 {
-        let mut b_iter = self.0.iter();
-        let mut decoded = T243([T9(0, 0, 0); 27]);
-        let mut t_iter_mut = decoded.0.iter_mut();
-        for _ in 0..27 {
-            let b16 = b_iter.next().unwrap();
-            let t9 = t_iter_mut.next().unwrap();
-            *t9 = b16.decode();
-        }
-        decoded
-    }
-}
+trinary_struct!(T243, 243, B432, test_encoding_decoding_of_T243);
+trinary_struct!(T81, 81, B144, test_encoding_decoding_of_T81);
+trinary_struct!(T27, 27, B48, test_encoding_decoding_of_T27);
 
 #[cfg(test)]
 mod test {
@@ -96,14 +117,8 @@ mod test {
 
     #[test]
     fn test_243_encoding_decoding() {
-        let t243 = T243::from_human_readable("AB9C");
-        let b432 = t243.encode();
-        let t243 = b432.decode();
-
-        let mut expected = [0 as u8; 81];
-        expected[0] = 1;
-        expected[1] = 2;
-        expected[3] = 3;
-        assert_eq!(expected[0..81], t243.as_tryte_array()[0..81]);
+        test_encoding_decoding_of_T243();
+        test_encoding_decoding_of_T81();
+        test_encoding_decoding_of_T27()
     }
 }
